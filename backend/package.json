@@ -5,7 +5,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --exec ts-node src/server.ts",
+    "dev": "nodemon --exec 'pnpm tsx' src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "vitest"
@@ -34,6 +34,7 @@
     "@vitest/coverage-v8": "^4.1.2",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.2"
   }
