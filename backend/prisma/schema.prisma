@@ -1,13 +1,181 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// This is your Prisma schema file
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- ENUMS ---
+
+enum Role {
+  MEMBER
+  ADMIN
+}
+
+enum VerbStatus {
+  TO_LEARN
+  LEARNING
+  MASTERED
+}
+
+enum ProposalStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum VoteValue {
+  APPROVE
+  REJECT
+}
+
+// --- MODELS ---
+
+model User {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  passwordHash  String         @map("password_hash")
+  role          Role           @default(MEMBER)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  sessions      Session[]
+  userVerbs     UserVerb[]
+  exercises     Exercise[]
+  proposals     VerbProposal[] @relation("UserProposals")
+  votes         VerbProposalVote[]
+
+  @@map("users")
+}
+
+model Session {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  tokenHash  String   @map("token_hash")
+  createdAt  DateTime @default(now()) @map("created_at")
+  expiresAt  DateTime @map("expires_at")
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Category {
+  id          Int            @id @default(autoincrement())
+  name        String
+  description String?
+  
+  verbs       Verb[]
+  proposals   VerbProposal[]
+
+  @@map("categories")
+}
+
+model Verb {
+  id              Int            @id @default(autoincrement())
+  greek           String
+  transliteration String?
+  categoryId      Int?           @map("category_id")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  category        Category?      @relation(fields: [categoryId], references: [id])
+  translations    Translation[]
+  conjugations    Conjugation[]
+  userVerbs       UserVerb[]
+  proposals       VerbProposal[]
+
+  @@map("verbs")
+}
+
+model Translation {
+  id         Int     @id @default(autoincrement())
+  verbId     Int     @map("verb_id")
+  french     String
+  usageNote  String? @map("usage_note")
+
+  verb       Verb    @relation(fields: [verbId], references: [id], onDelete: Cascade)
+
+  @@map("translations")
+}
+
+model Conjugation {
+  id              Int     @id @default(autoincrement())
+  verbId          Int     @map("verb_id")
+  tense           String?
+  mood            String?
+  voice           String?
+  person          String?
+  greekForm       String? @map("greek_form")
+  transliteration String?
+  frenchForm      String? @map("french_form")
+  hiddenPart      String? @map("hidden_part")
+
+  verb            Verb    @relation(fields: [verbId], references: [id], onDelete: Cascade)
+
+  @@map("conjugations")
+}
+
+model UserVerb {
+  id            Int        @id @default(autoincrement())
+  userId        Int        @map("user_id")
+  verbId        Int        @map("verb_id")
+  status        VerbStatus @default(TO_LEARN)
+  dateAdded     DateTime   @default(now()) @map("date_added")
+  lastPracticed DateTime?  @map("last_practiced")
+
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verb          Verb       @relation(fields: [verbId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, verbId])
+  @@map("user_verbs")
+}
+
+model Exercise {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @map("user_id")
+  score       Float?
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("exercises")
+}
+
+model VerbProposal {
+  id              Int            @id @default(autoincrement())
+  submittedBy     Int            @map("submitted_by")
+  verbId          Int?           @map("verb_id")
+  greek           String?
+  transliteration String?
+  categoryId      Int?           @map("category_id")
+  status          ProposalStatus @default(PENDING)
+  createdAt       DateTime       @default(now()) @map("created_at")
+
+  user            User           @relation("UserProposals", fields: [submittedBy], references: [id])
+  verb            Verb?          @relation(fields: [verbId], references: [id])
+  category        Category?      @relation(fields: [categoryId], references: [id])
+  votes           VerbProposalVote[]
+
+  @@map("verb_proposals")
+}
+
+model VerbProposalVote {
+  id          Int       @id @default(autoincrement())
+  proposalId  Int       @map("proposal_id")
+  adminId     Int       @map("admin_id")
+  vote        VoteValue
+  comment     String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  proposal    VerbProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  admin       User         @relation(fields: [adminId], references: [id])
+
+  @@unique([proposalId, adminId])
+  @@map("verb_proposal_votes")
 }
